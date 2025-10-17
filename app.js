@@ -4,24 +4,30 @@ import dotenv from "dotenv";
 import pool from "./db.js";
 import client from "./redis.js";
 import testRoutes from "./routes/dbTest.js";
+import RedisStore from "rate-limit-redis";
 
 dotenv.config(); // load .env variables
 
 const app = express();
 
 // Apply rate limiting to prevent abuse
+
 const limiter = rateLimit({
-  windowMs: 60 * 1000, 
-  max: 5, 
+  store: new RedisStore({
+    sendCommand: (...args) => client.sendCommand(args),
+  }),
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
   message: {
     status: 429,
     error: "Too many requests. Please try again after a minute."
   },
-  standardHeaders: true, 
-  legacyHeaders: false,  
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 app.use(limiter);
+
 
 // Attach Redis client globally
 app.locals.redis = client;

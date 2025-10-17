@@ -1,23 +1,36 @@
 import express from "express";
+import dotenv from "dotenv";
+import pool from "./db.js";
 import { createClient } from 'redis';
+import testRoutes from "./routes/dbTest.js";
+
+dotenv.config(); // load .env variables
+
 const app = express();
 
-const client = createClient({
-    username: 'default',
-    password: 'LAVKv3hcU0LuhJ5SBVrQkqCeA3Rzfy9F',
-    socket: {
-        host: 'redis-19660.c240.us-east-1-3.ec2.redns.redis-cloud.com',
-        port: 19660
-    }
+app.use((req, res, next) => {
+  console.log("⚡ Incoming URL:", req.url);
+  next();
 });
 
-client.on('error', err => console.log('Redis Client Error', err));
+app.use("/", testRoutes);
+
+const client = createClient({
+  username: process.env.REDIS_USERNAME,
+  password: process.env.REDIS_PASSWORD,
+  socket: {
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT
+  }
+});
+
+client.on("error", (err) => console.log("❌ Redis Client Error:", err));
 
 (async () => {
   await client.connect();
   console.log("✅ Connected to Redis Cloud");
  
-    // Attach Redis to app (so routes can use it)
+  // Attach Redis to app (so routes can use it)
   app.locals.redis = client;
 })();
 
@@ -34,7 +47,7 @@ app.use((req, res, next) => {
   next(); 
 });
 
-// DAY ONE - Latency test
+// DAY ONE - Latency test after spinning up simple Express API
 // app.get("/ping", async (req, res) => {
 //     console.time("ping");
 
@@ -46,6 +59,7 @@ app.use((req, res, next) => {
 
 //      res.json({ message: "pongggg 🧠" });
 // });
+
 
 // DAY TWO - Redis Caching
 
@@ -60,23 +74,37 @@ app.get("/ping", async (req, res) => {
 
   console.log("🧠 Cache miss, simulating delay...");
   console.time("ping");
+  
   // simulate async delay (e.g. a DB/API call)
   await new Promise((resolve) => setTimeout(resolve, 500)); 
 
   const response = { message: "pongggg 🧠" };
-
   console.timeEnd("ping");
 
-  // cache the response for 10 seconds
   await client.setEx("ping-response", 10, JSON.stringify(response));
-
   console.log("🧠 Saved new response to Redis cache");
   res.json(response);
 })
 
+// 🧩 PostgreSQL status check route (Day 3)
+app.get("/db-status", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({
+      status: "Connected ✅",
+      serverTime: result.rows[0].now,
+    });
+  } catch (err) {
+    console.error("❌ Database error:", err.message);
+    res.status(500).json({ status: "Error", message: err.message });
+  }
+});
+
+
+// General server status route 
 app.get("/status", (req, res) => {
-    const uptime = process.uptime(); //seconds the server has been running
-    const timestamp = new Date().toISOString(); // current server time
+    const uptime = process.uptime(); 
+    const timestamp = new Date().toISOString(); 
 
     res.json({
         uptime: `${uptime.toFixed(2)} seconds`,

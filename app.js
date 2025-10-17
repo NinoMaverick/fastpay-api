@@ -1,40 +1,32 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import pool from "./db.js";
-import { createClient } from 'redis';
+import client from "./redis.js";
 import testRoutes from "./routes/dbTest.js";
 
 dotenv.config(); // load .env variables
 
 const app = express();
 
-app.use((req, res, next) => {
-  console.log("⚡ Incoming URL:", req.url);
-  next();
+// Apply rate limiting to prevent abuse
+const limiter = rateLimit({
+  windowMs: 60 * 1000, 
+  max: 5, 
+  message: {
+    status: 429,
+    error: "Too many requests. Please try again after a minute."
+  },
+  standardHeaders: true, 
+  legacyHeaders: false,  
 });
 
-app.use("/", testRoutes);
+app.use(limiter);
 
-const client = createClient({
-  username: process.env.REDIS_USERNAME,
-  password: process.env.REDIS_PASSWORD,
-  socket: {
-    host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT
-  }
-});
+// Attach Redis client globally
+app.locals.redis = client;
 
-client.on("error", (err) => console.log("❌ Redis Client Error:", err));
-
-(async () => {
-  await client.connect();
-  console.log("✅ Connected to Redis Cloud");
- 
-  // Attach Redis to app (so routes can use it)
-  app.locals.redis = client;
-})();
-
-// Logging middleware
+// Logging + request timer
 app.use((req, res, next) => {
   const start = Date.now();
   console.log(`Incoming request: ${req.method} ${req.url}`);
@@ -47,21 +39,8 @@ app.use((req, res, next) => {
   next(); 
 });
 
-// DAY ONE - Latency test after spinning up simple Express API
-// app.get("/ping", async (req, res) => {
-//     console.time("ping");
+app.use("/", testRoutes);
 
-//     // simulate async delay
-//     await new Promise(resolve => setTimeout(resolve, 500));
-
-//     // measure before sending response
-//     console.timeEnd("ping");
-
-//      res.json({ message: "pongggg 🧠" });
-// });
-
-
-// DAY TWO - Redis Caching
 
 // Ping route with lazy caching
 app.get("/ping", async (req, res) => {
@@ -75,7 +54,6 @@ app.get("/ping", async (req, res) => {
   console.log("🧠 Cache miss, simulating delay...");
   console.time("ping");
   
-  // simulate async delay (e.g. a DB/API call)
   await new Promise((resolve) => setTimeout(resolve, 500)); 
 
   const response = { message: "pongggg 🧠" };
@@ -99,7 +77,6 @@ app.get("/db-status", async (req, res) => {
     res.status(500).json({ status: "Error", message: err.message });
   }
 });
-
 
 // General server status route 
 app.get("/status", (req, res) => {

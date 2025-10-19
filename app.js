@@ -5,13 +5,13 @@ import pool from "./db.js";
 import client from "./redis.js";
 import testRoutes from "./routes/dbTest.js";
 import RedisStore from "rate-limit-redis";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 dotenv.config(); // load .env variables
 
 const app = express();
 
-// Apply rate limiting to prevent abuse
-
+// Apply rate limiting to prevent abuse (Day 5)
 const limiter = rateLimit({
   store: new RedisStore({
     sendCommand: (...args) => client.sendCommand(args),
@@ -47,7 +47,7 @@ app.use((req, res, next) => {
 
 app.use("/", testRoutes);
 
-
+app.use("/api", paymentRoutes);
 // Ping route with lazy caching
 app.get("/ping", async (req, res) => {
   const cached = await client.get("ping-response");

@@ -6,6 +6,8 @@ import client from "./redis.js";
 import testRoutes from "./routes/dbTest.js";
 import RedisStore from "rate-limit-redis";
 import paymentRoutes from "./routes/paymentRoutes.js";
+import healthRoutes from "./routes/healthRoutes.js";
+import { swaggerUi, swaggerSpec } from "./docs/swagger.js";
 
 dotenv.config(); // load .env variables
 
@@ -48,6 +50,11 @@ app.use((req, res, next) => {
 app.use("/", testRoutes);
 
 app.use("/api", paymentRoutes);
+
+app.use("/health", healthRoutes);
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Ping route with lazy caching
 app.get("/ping", async (req, res) => {
   const cached = await client.get("ping-response");

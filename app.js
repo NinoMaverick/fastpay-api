@@ -8,6 +8,7 @@ import RedisStore from "rate-limit-redis";
 import paymentRoutes from "./routes/paymentRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
 import { swaggerUi, swaggerSpec } from "./docs/swagger.js";
+import systemRoutes from "./routes/systemRoutes.js";
 
 dotenv.config(); // load .env variables
 
@@ -47,50 +48,6 @@ app.use((req, res, next) => {
   next(); 
 });
 
-app.use("/", testRoutes);
-
-app.use("/api", paymentRoutes);
-
-app.use("/health", healthRoutes);
-
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// Ping route with lazy caching
-app.get("/ping", async (req, res) => {
-  const cached = await client.get("ping-response");
-
-  if (cached) {
-    console.log("⚡ Serving from Redis cache");
-    return res.json(JSON.parse(cached));
-  }
-
-  console.log("🧠 Cache miss, simulating delay...");
-  console.time("ping");
-  
-  await new Promise((resolve) => setTimeout(resolve, 500)); 
-
-  const response = { message: "pongggg 🧠" };
-  console.timeEnd("ping");
-
-  await client.setEx("ping-response", 10, JSON.stringify(response));
-  console.log("🧠 Saved new response to Redis cache");
-  res.json(response);
-})
-
-// 🧩 PostgreSQL status check route (Day 3)
-app.get("/db-status", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({
-      status: "Connected ✅",
-      serverTime: result.rows[0].now,
-    });
-  } catch (err) {
-    console.error("❌ Database error:", err.message);
-    res.status(500).json({ status: "Error", message: err.message });
-  }
-});
-
 // General server status route 
 app.get("/status", (req, res) => {
     const uptime = process.uptime(); 
@@ -101,5 +58,11 @@ app.get("/status", (req, res) => {
         timestamp
     });
 });
+
+app.use("/", testRoutes);
+app.use("/api", paymentRoutes);
+app.use("/health", healthRoutes);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api/system", systemRoutes);
 
 export default app;

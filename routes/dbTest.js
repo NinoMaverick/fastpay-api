@@ -3,7 +3,6 @@ import pool from "../db.js";
 
 const router = express.Router();
 
-console.log("Pool settings:", pool.options);
 
 router.get("/test-load", async (req, res) => {
   console.time("parallel-queries");

@@ -85,6 +85,20 @@ async function seed() {
     ]);
 
     // ==============================
+    // 5️⃣  SEED DEFAULT ADMIN USER
+    // ==============================
+    const adminRole = await db("roles").where({ name: "Admin" }).first();
+
+    await db("users").insert({
+      email: "admin@fastpay.local",
+      password_hash: await bcrypt.hash("AdminPass123", 10),
+      full_name: "System Admin",
+      role_id: adminRole.id,
+    });
+
+    console.log("✅ Admin user created: admin@fastpay.local");
+
+    // ==============================
     // ✅  DONE
     // ==============================
     console.log("✅ Seeding complete!");

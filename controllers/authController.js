@@ -7,20 +7,22 @@ export const signup = async (req, res) => {
     const { email, password, full_name } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res.status(400).
+      json({ message: "Email and password are required" });
     }
 
     // Check if user already exists
     const existing = await db("users").where({ email }).first();
     if (existing) {
-      return res.status(409).json({ message: "Email already in use" });
+      return res.status(409).
+      json({ message: "Email already in use" });
     }
 
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
 
     // Fetch the regular "User" role ID
-    const userRole = await db("roles").where({ name: "User" }).first();
+    const userRole = await db("roles").where({ name: "user" }).first();
     if (!userRole) {
       return res.status(500).json({ message: "User role not found in system" });
     }

@@ -1,5 +1,6 @@
 import express from "express";
-import { createPayment } from "../controllers/paymentController.js";
+import { verifyToken, requireAdmin } from "../middleware/authMiddleware.js";
+import { createPayment, getAllPayments, getMyPayments } from "../controllers/paymentController.js";
 
 /**
  * @swagger
@@ -56,6 +57,8 @@ import { createPayment } from "../controllers/paymentController.js";
 const router = express.Router();
 
 // POST /api/payments — idempotent payment creation
-router.post("/payments", createPayment);
+router.post("/payments", verifyToken, createPayment);
+router.get("/payments/me", verifyToken, getMyPayments);
+router.get("/payments/all", verifyToken, requireAdmin, getAllPayments);
 
 export default router;

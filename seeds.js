@@ -1,112 +1,153 @@
 import knex from "knex";
 import config from "./knexfile.js";
+import bcrypt from "bcrypt";
 
 const db = knex(config.development);
 
-async function seed() {
-  try {
-    // ==============================
-    // 1️⃣  SEED ROLES
-    // ==============================
-    await db("roles").insert([
-      { name: "Admin", description: "Full access to system" },
-      { name: "User", description: "Regular user with limited access" },
-    ]);
+console.log("🚀 Seed script started");
 
-    // ==============================
-    // 2️⃣  SEED PERMISSIONS
-    // ==============================
-    await db("permissions").del(); // clear existing permissions
-    await db("permissions").insert([
-      {
-        name: "CREATE_PAYMENT",
-        description: "Users can initiate a payment",
-      },
-      {
-        name: "READ_PAYMENT",
-        description: "Users can view their own payment history",
-      },
-      {
-        name: "READ_ALL_PAYMENTS",
-        description: "Admins can view all users’ payments",
-      },
-      {
-        name: "UPDATE_PAYMENT_STATUS",
-        description: "Admins can update payment status",
-      },
-    ]);
+// ==============================
+// Constants
+// ==============================
+const ROLES = [
+  { name: "admin", description: "Full access to system" },
+  { name: "user", description: "Regular user with limited access" },
+];
 
-    // ==============================
-    // 3️⃣  FETCH RECORDS FOR RELATIONS
-    // ==============================
-    const roles = await db("roles").select();
-    const permissions = await db("permissions").select();
+const PERMISSIONS = [
+  { name: "CREATE_PAYMENT", description: "Users can initiate a payment" },
+  { name: "READ_PAYMENT", description: "Users can view their own payment history" },
+  { name: "READ_ALL_PAYMENTS", description: "Admins can view all users' payments" },
+  { name: "UPDATE_PAYMENT_STATUS", description: "Admins can update payment status" },
+];
 
-    // Helper functions
-    const findRoleId = (roleName) =>
-      roles.find((r) => r.name === roleName)?.id;
+const ROLE_PERMISSION_MAP = {
+  user: ["CREATE_PAYMENT", "READ_PAYMENT"],
+  admin: [
+    "CREATE_PAYMENT",
+    "READ_PAYMENT",
+    "READ_ALL_PAYMENTS",
+    "UPDATE_PAYMENT_STATUS",
+  ],
+};
 
-    const findPermissionId = (permName) =>
-      permissions.find((p) => p.name === permName)?.id;
+const DEFAULT_ADMIN = {
+  email: "admin@fastpay.local",
+  password: "AdminPass123",
+  full_name: "System Admin",
+};
 
-    // ==============================
-    // 4️⃣  SEED ROLE ↔ PERMISSION MAP
-    // ==============================
-    await db("role_permissions").del(); // clear existing mappings
+// ==============================
+// Helper functions
+// ==============================
+const findById = (items, key, value) =>
+  items.find((item) => item[key] === value)?.id;
 
-    await db("role_permissions").insert([
-      // ----- USER ROLE -----
-      {
-        role_id: findRoleId("User"),
-        permission_id: findPermissionId("CREATE_PAYMENT"),
-      },
-      {
-        role_id: findRoleId("User"),
-        permission_id: findPermissionId("READ_PAYMENT"),
-      },
+async function clearTable(tableName) {
+  await db(tableName).del();
+  console.log(`🧹 Cleared ${tableName} table`);
+}
 
-      // ----- ADMIN ROLE -----
-      {
-        role_id: findRoleId("Admin"),
-        permission_id: findPermissionId("READ_PAYMENT"),
-      },
-      {
-        role_id: findRoleId("Admin"),
-        permission_id: findPermissionId("CREATE_PAYMENT"),
-      },
-      {
-        role_id: findRoleId("Admin"),
-        permission_id: findPermissionId("READ_ALL_PAYMENTS"),
-      },
-      {
-        role_id: findRoleId("Admin"),
-        permission_id: findPermissionId("UPDATE_PAYMENT_STATUS"),
-      },
-    ]);
+// ==============================
+// Seed functions
+// ==============================
+async function seedRoles() {
+  console.log(" Seeding roles...");
+  await clearTable("roles");
+  await db("roles").insert(ROLES);
+  return await db("roles").select();
+}
 
-    // ==============================
-    // 5️⃣  SEED DEFAULT ADMIN USER
-    // ==============================
-    const adminRole = await db("roles").where({ name: "Admin" }).first();
+async function seedPermissions() {
+  console.log(" Seeding permissions...");
+  await clearTable("permissions");
+  await db("permissions").insert(PERMISSIONS);
+  return await db("permissions").select();
+}
 
-    await db("users").insert({
-      email: "admin@fastpay.local",
-      password_hash: await bcrypt.hash("AdminPass123", 10),
-      full_name: "System Admin",
-      role_id: adminRole.id,
-    });
+async function seedRolePermissions(roles, permissions) {
+  console.log(" Linking roles and permissions...");
+  await clearTable("role_permissions");
 
-    console.log("✅ Admin user created: admin@fastpay.local");
+  const mappings = [];
 
-    // ==============================
-    // ✅  DONE
-    // ==============================
-    console.log("✅ Seeding complete!");
-    process.exit(0);
-  } catch (err) {
-    console.error("❌ Seeding failed:", err.message);
-    process.exit(1);
+  for (const [roleName, permNames] of Object.entries(ROLE_PERMISSION_MAP)) {
+    const roleId = findById(roles, "name", roleName);
+
+    for (const permName of permNames) {
+      const permId = findById(permissions, "name", permName);
+      if (roleId && permId) {
+        mappings.push({ role_id: roleId, permission_id: permId });
+      }
+    }
+  }
+
+  if (mappings.length > 0) {
+    await db("role_permissions").insert(mappings);
   }
 }
 
-seed();
+async function seedAdminUser(roles) {
+  console.log(" Creating admin user...");
+
+  const adminRole = roles.find((r) => r.name === "admin");
+  if (!adminRole) throw new Error("Admin role not found");
+
+  const existingAdmin = await db("users")
+    .where({ email: DEFAULT_ADMIN.email })
+    .first();
+
+  if (existingAdmin) {
+    console.log(" Admin user already exists, skipping creation");
+    return;
+  }
+
+  // Hash the admin password
+  const passwordHash = await bcrypt.hash(DEFAULT_ADMIN.password, 10);
+
+  await db("users").insert({
+    email: DEFAULT_ADMIN.email,
+    password_hash: passwordHash,
+    full_name: DEFAULT_ADMIN.full_name,
+    role_id: adminRole.id,
+  });
+
+  console.log(` Admin user created: ${DEFAULT_ADMIN.email}`);
+}
+
+// ==============================
+// Main seeding process
+// ==============================
+async function seed() {
+  try {
+    console.log(" Starting database seed...\n");
+
+    // Use transaction for atomicity
+    await db.transaction(async (trx) => {
+      const roles = await seedRoles();
+      const permissions = await seedPermissions();
+      await seedRolePermissions(roles, permissions);
+      await seedAdminUser(roles);
+    });
+
+    console.log("\n✅ Seeding completed successfully!");
+  } catch (err) {
+    console.error("\n❌ Seeding failed:", err.message);
+    console.error(err.stack);
+    throw err;
+  } finally {
+    await db.destroy();
+  }
+}
+
+seed()
+  .then(() => {
+    console.log("✅ Done seeding");
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("❌ Seed failed:", err);
+    process.exit(1);
+  });
+
+export default seed;

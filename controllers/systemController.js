@@ -23,10 +23,10 @@ try {
     }};
 
    // 🧩 PostgreSQL status check route (Day 3)
-   const dbStatus = async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({
+const dbStatus = async (req, res) => {
+try {
+  const result = await pool.query("SELECT NOW()");
+  res.json({
       status: "Connected ✅",
       serverTime: result.rows[0].now,
     });

@@ -1,4 +1,4 @@
-import app from "./app.js"; // ✅ must be at the top
+import app from "./app.js";
 
 console.log("=== server.js started ===");
 

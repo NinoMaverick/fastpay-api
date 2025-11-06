@@ -1,6 +1,4 @@
 import jwt from "jsonwebtoken";
-import db from "../db.js";
-
 
 export const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -21,8 +19,8 @@ export const verifyToken = async (req, res, next) => {
   }
 };
 
-export const requireAdmin = async (req, res, next) => {
-  if (req.user?.role !== "Admin") {
+export const verifyAdmin = async (req, res, next) => {
+  if (req.user?.role !== "admin") {
     return res.status(403).json({ message: "Admin access only" });
   }
   next();

@@ -1,7 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
-import pool from "./db.js";
+import helmet from "helmet";
 import client from "./redis.js";
 import RedisStore from "rate-limit-redis";
 
@@ -65,6 +65,7 @@ app.use((req, res, next) => {
 //         timestamp
 //     });
 // });
+app.use(helmet());
 
 app.use("/", testRoutes);
 app.use("/api", paymentRoutes);

@@ -15,7 +15,7 @@ export const createAdmin = async (req, res) => {
     }
 
     const password_hash = await bcrypt.hash(password, 10);
-    const adminRole = await db("roles").where({ name: "Admin" }).first();
+    const adminRole = await db("roles").where({ name: "admin" }).first();
 
     const [newAdmin] = await db("users")
       .insert({

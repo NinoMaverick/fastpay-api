@@ -1,4 +1,3 @@
-FastPay API
 FastPay API is a modular, production-ready backend service for managing payments, user authentication, and role-based access control. Built with Node.js, Express, PostgreSQL, and Redis, it implements modern backend patterns including JWT authentication, input validation, idempotent payment processing, and async job queues.
 
 Features
@@ -35,31 +34,32 @@ Prerequisites
 * PostgreSQL
 * Redis
 * npm or yarn
+  
 Installation
 1. Clone the repo:
-git clone https://github.com/<your-username>/fastpay-api.git
-cd fastpay-api
+   git clone https://github.com/<your-username>/fastpay-api.git
+   cd fastpay-api
 1. Install dependencies:
-npm install
+   npm install
 1. Create a .env file in the root with the following variables:
-PORT=3000
-DATABASE_URL=postgres://user:password@localhost:5432/fastpaydb
-REDIS_URL=redis://localhost:6379
-JWT_SECRET=your_jwt_secret
+   PORT=3000
+   DATABASE_URL=postgres://user:password@localhost:5432/fastpaydb
+   REDIS_URL=redis://localhost:6379
+   JWT_SECRET=your_jwt_secret
 1. Run migrations and seeds (if using Knex):
-npx knex migrate:latest
-npx knex seed:run
+   npx knex migrate:latest
+   npx knex seed:run
 1. Start the server:
 npm run dev
 Server will run on http://localhost:3000.
 
 API Endpoints
 Auth
-Method	Endpoint	Description
+Method	Endpoint	      Description
 POST	/api/auth/signup	Register a new user
 POST	/api/auth/login	Authenticate user & issue JWT
 Payments
-Method	Endpoint	Description
+Method	Endpoint	   Description
 POST	/api/payments	Create payment (idempotent)
 GET	/api/payments	Get all payments
 GET	/api/payments/me	Get payments for authenticated user
